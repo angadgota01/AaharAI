@@ -14,6 +14,11 @@ class _SignupScreenState extends State<SignupScreen> {
   final pass1 = TextEditingController();
   final pass2 = TextEditingController();
   String? error;
+  bool isLoading = false;
+
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
+  }
 
   void doSignup() async {
     final e = email.text.trim();
@@ -25,16 +30,44 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
+    if (!_isValidEmail(e)) {
+      setState(() => error = "Please enter a valid email address");
+      return;
+    }
+
+    if (p1.length < 6) {
+      setState(() => error = "Password must be at least 6 characters");
+      return;
+    }
+
     if (p1 != p2) {
       setState(() => error = "Passwords do not match");
       return;
     }
 
+    setState(() {
+      isLoading = true;
+      error = null;
+    });
+
     final result = await AuthService.signup(e, p1);
+
+    if (!mounted) return;
+
+    setState(() => isLoading = false);
 
     if (result != null) {
       setState(() => error = result);
     } else {
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Account created successfully! Please login.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
       context.go('/login');
     }
   }
@@ -45,7 +78,7 @@ class _SignupScreenState extends State<SignupScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/login'),
+          onPressed: isLoading ? null : () => context.go('/login'),
         ),
         title: const Text("Create Account"),
       ),
@@ -57,13 +90,50 @@ class _SignupScreenState extends State<SignupScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: email, decoration: const InputDecoration(labelText: "Email")),
-                TextField(controller: pass1, obscureText: true, decoration: const InputDecoration(labelText: "Password")),
-                TextField(controller: pass2, obscureText: true, decoration: const InputDecoration(labelText: "Confirm Password")),
+                TextField(
+                  controller: email,
+                  decoration: const InputDecoration(
+                    labelText: "Email",
+                    hintText: "your@email.com",
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  enabled: !isLoading,
+                ),
+                TextField(
+                  controller: pass1,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: "Password",
+                    hintText: "Min. 6 characters",
+                  ),
+                  enabled: !isLoading,
+                ),
+                TextField(
+                  controller: pass2,
+                  obscureText: true,
+                  decoration: const InputDecoration(labelText: "Confirm Password"),
+                  enabled: !isLoading,
+                  onSubmitted: (_) => doSignup(),
+                ),
                 if (error != null)
-                  Text(error!, style: const TextStyle(color: Colors.red)),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(error!, style: const TextStyle(color: Colors.red)),
+                  ),
                 const SizedBox(height: 16),
-                ElevatedButton(onPressed: doSignup, child: const Text("Create Account")),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: isLoading ? null : doSignup,
+                    child: isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text("Create Account"),
+                  ),
+                ),
               ],
             ),
           ),
@@ -72,6 +142,3 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 }
-
-
-

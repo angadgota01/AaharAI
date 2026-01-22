@@ -1,6 +1,7 @@
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 import 'entities/food_log.dart';
+import 'entities/user_profile.dart';
 
 class IsarService {
   late Future<Isar> db;
@@ -14,7 +15,7 @@ class IsarService {
       final dir = await getApplicationDocumentsDirectory();
       // ISAR v3 SYNTAX
       return await Isar.open(
-        [FoodLogSchema],
+        [FoodLogSchema, UserProfileSchema],
         directory: dir.path,
         inspector: true,
       );
@@ -53,5 +54,37 @@ class IsarService {
     await isar.writeTxn(() async {
       await isar.foodLogs.delete(id);
     });
+  }
+
+  // --- USER PROFILE METHODS ---
+  Future<void> saveUserProfile(UserProfile profile) async {
+    final isar = await db;
+    await isar.writeTxn(() async {
+      await isar.userProfiles.put(profile);
+    });
+  }
+
+  Future<UserProfile?> getUserProfile(String userId) async {
+    final isar = await db;
+    return await isar.userProfiles
+        .filter()
+        .userIdEqualTo(userId)
+        .findFirst();
+  }
+
+  Future<UserProfile?> getCurrentUserProfile() async {
+    final isar = await db;
+    // Get the first (and should be only) user profile
+    return await isar.userProfiles.where().findFirst();
+  }
+
+  Future<void> deleteUserProfile(String userId) async {
+    final isar = await db;
+    final profile = await getUserProfile(userId);
+    if (profile != null) {
+      await isar.writeTxn(() async {
+        await isar.userProfiles.delete(profile.id);
+      });
+    }
   }
 }

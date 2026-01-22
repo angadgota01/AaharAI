@@ -13,6 +13,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final email = TextEditingController();
   final password = TextEditingController();
   String? error;
+  bool isLoading = false;
 
   void doLogin() async {
     final e = email.text.trim();
@@ -23,7 +24,16 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    setState(() {
+      isLoading = true;
+      error = null;
+    });
+
     final result = await AuthService.login(e, p);
+
+    if (!mounted) return;
+
+    setState(() => isLoading = false);
 
     if (result != null) {
       setState(() => error = result);
@@ -44,14 +54,41 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text("Login", style: TextStyle(fontSize: 24)),
-                TextField(controller: email, decoration: const InputDecoration(labelText: "Email")),
-                TextField(controller: password, obscureText: true, decoration: const InputDecoration(labelText: "Password")),
-                if (error != null)
-                  Text(error!, style: const TextStyle(color: Colors.red)),
                 const SizedBox(height: 16),
-                ElevatedButton(onPressed: doLogin, child: const Text("Login")),
+                TextField(
+                  controller: email,
+                  decoration: const InputDecoration(labelText: "Email"),
+                  keyboardType: TextInputType.emailAddress,
+                  enabled: !isLoading,
+                ),
+                TextField(
+                  controller: password,
+                  obscureText: true,
+                  decoration: const InputDecoration(labelText: "Password"),
+                  enabled: !isLoading,
+                  onSubmitted: (_) => doLogin(),
+                ),
+                if (error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(error!, style: const TextStyle(color: Colors.red)),
+                  ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: isLoading ? null : doLogin,
+                    child: isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text("Login"),
+                  ),
+                ),
                 TextButton(
-                  onPressed: () => context.go('/signup'),
+                  onPressed: isLoading ? null : () => context.go('/signup'),
                   child: const Text("Create Account"),
                 )
               ],
@@ -62,4 +99,3 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-
