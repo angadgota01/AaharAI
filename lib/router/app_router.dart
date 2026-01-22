@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,6 +6,7 @@ import '../auth/signup_screen.dart';
 import '../features/dashboard/presentation/user_home.dart';
 import '../consultation/nutritionist_list.dart';
 import '../consultation/chat_screen.dart';
+import '../features/scanner/presentation/add_meal_screen.dart';
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -46,6 +46,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           final doctorName = state.extra as String;
           return ChatScreen(doctor: doctorName);
         },
+      ),
+
+      // -------- ADD MEAL --------
+      GoRoute(
+        path: '/add_meal',
+        name: 'add_meal',
+        builder: (context, state) => const AddMealScreen(),
       ),
     ],
   );

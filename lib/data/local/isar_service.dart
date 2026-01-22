@@ -43,6 +43,11 @@ class IsarService {
         .findAll();
   }
 
+  Future<List<FoodLog>> getAllLogs() async {
+    final isar = await db;
+    return await isar.foodLogs.where().sortByTimestampDesc().findAll();
+  }
+
   Future<void> deleteLog(int id) async {
     final isar = await db;
     await isar.writeTxn(() async {
