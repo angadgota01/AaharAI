@@ -67,4 +67,16 @@ class AuthService {
   static Stream<AuthState> get authStateChanges {
     return _supabase.auth.onAuthStateChange;
   }
+
+  // Request password reset email
+  static Future<String?> resetPassword(String email) async {
+    try {
+      await _supabase.auth.resetPasswordForEmail(email);
+      return null; // Success
+    } on AuthException catch (e) {
+      return e.message;
+    } catch (e) {
+      return "An unexpected error occurred: $e";
+    }
+  }
 }

@@ -88,6 +88,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 TextButton(
+                  onPressed: isLoading ? null : () => context.go('/forgot-password'),
+                  child: const Text("Forgot Password?"),
+                ),
+                TextButton(
                   onPressed: isLoading ? null : () => context.go('/signup'),
                   child: const Text("Create Account"),
                 )

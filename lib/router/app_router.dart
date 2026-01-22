@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../auth/login_screen.dart';
 import '../auth/signup_screen.dart';
+import '../auth/forgot_password_screen.dart';
 import '../auth/auth_service.dart';
 import '../auth/auth_notifier.dart';
 import '../features/dashboard/presentation/user_home.dart';
@@ -20,9 +21,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       final isAuthenticated = AuthService.isAuthenticated();
       final isLoggingIn = state.matchedLocation == '/login';
       final isSigningUp = state.matchedLocation == '/signup';
+      final isForgotPassword = state.matchedLocation == '/forgot-password';
 
       // If not authenticated and trying to access protected routes
-      if (!isAuthenticated && !isLoggingIn && !isSigningUp) {
+      if (!isAuthenticated && !isLoggingIn && !isSigningUp && !isForgotPassword) {
         return '/login';
       }
 
@@ -45,6 +47,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: '/signup',
         name: 'signup',
         builder: (context, state) => const SignupScreen(),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        name: 'forgot-password',
+        builder: (context, state) => const ForgotPasswordScreen(),
       ),
 
       // -------- HOME --------
