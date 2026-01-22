@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../auth/login_screen.dart';
 import '../auth/signup_screen.dart';
 import '../features/dashboard/presentation/user_home.dart';
-import '../consultation/nutritionist_list.dart';
+import '../features/dashboard/presentation/consultation_screen.dart';
 import '../consultation/chat_screen.dart';
 import '../features/scanner/presentation/add_meal_screen.dart';
 
@@ -31,11 +31,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const UserHomeScreen(),
       ),
 
-      // -------- CONSULTATION --------
+      // -------- CONSULTATION (PREMIUM) --------
       GoRoute(
         path: '/consultation',
         name: 'consultation',
-        builder: (context, state) => const NutritionistListScreen(),
+        builder: (context, state) => const ConsultationScreen(),
       ),
 
       // -------- CHAT --------
