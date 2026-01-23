@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -116,6 +118,7 @@ class _HomeContent extends ConsumerWidget {
       ),
     );
   }
+}
 
   Widget _buildSummaryCard(AsyncValue<List<FoodLog>> asyncLogs) {
     double totalCals = 0;
@@ -128,28 +131,74 @@ class _HomeContent extends ConsumerWidget {
       }
     }
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.black, // Dark card for contrast
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildStat("Calories", "${totalCals.toInt()}", "kcal"),
-          Container(height: 40, width: 1, color: Colors.grey),
-          _buildStat("Protein", "${totalPro.toStringAsFixed(1)}", "g"),
+          const Text(
+            "Today",
+            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            "Track your nutrition mindfully",
+            style: TextStyle(color: Colors.white.withOpacity(0.65)),
+          ),
+          const SizedBox(height: 20),
+          _buildSummaryCards(asyncLogs),
+          const SizedBox(height: 28),
+          const Text(
+            "Today's Meals",
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: asyncLogs.when(
+              data: (logs) {
+                if (logs.isEmpty) return _buildEmptyState();
+                return ListView.builder(
+                  itemCount: logs.length,
+                  itemBuilder: (context, index) {
+                    return _MealTile(meal: logs[index]);
+                  },
+                );
+              },
+              loading: () =>
+                  const Center(child: CircularProgressIndicator()),
+              error: (_, __) =>
+                  const Center(child: Text("Error loading meals")),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildStat(String label, String value, String unit) {
-    return Column(
+  Widget _buildSummaryCards(AsyncValue<List<FoodLog>> asyncLogs) {
+    double calories = 0;
+    double protein = 0;
+
+    if (asyncLogs.hasValue) {
+      for (final log in asyncLogs.value!) {
+        calories += log.calories;
+        protein += log.protein;
+      }
+    }
+
+    return Row(
       children: [
-        Text(value, style: const TextStyle(color: Colors.orange, fontSize: 24, fontWeight: FontWeight.bold)),
-        Text("$unit $label", style: const TextStyle(color: Colors.white70, fontSize: 12)),
+        _GlassStatCard(
+          value: calories.toInt().toString(),
+          label: "kcal Calories",
+          color: const Color(0xFFFFB86C),
+        ),
+        const SizedBox(width: 16),
+        _GlassStatCard(
+          value: protein.toStringAsFixed(1),
+          label: "g Protein",
+          color: const Color(0xFF6EE7B7),
+        ),
       ],
     );
   }
