@@ -75,64 +75,12 @@ class _HomeContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final asyncLogs = ref.watch(todaysLogsProvider);
-
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSummaryCard(asyncLogs),
-          const SizedBox(height: 24),
-          const Text("Today's Meals", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          Expanded(
-            child: asyncLogs.when(
-              data: (logs) {
-                if (logs.isEmpty) return _buildEmptyState();
-                return ListView.builder(
-                  itemCount: logs.length,
-                  itemBuilder: (context, index) {
-                    final meal = logs[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: ListTile(
-                        leading: const CircleAvatar(child: Text("🥘")),
-                        title: Text(meal.foodName, style: const TextStyle(fontWeight: FontWeight.w600)),
-                        subtitle: Text(DateFormat('hh:mm a').format(meal.timestamp)),
-                        trailing: Text("${meal.calories.toInt()} kcal", 
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                        onLongPress: () {
-                           ref.read(isarProvider).deleteLog(meal.id);
-                           ref.refresh(todaysLogsProvider);
-                        },
-                      ),
-                    );
-                  },
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, s) => Center(child: Text("Error: $e")),
-            ),
-          ),
-        ],
-      ),
-    );
+    return _buildSummaryCard(asyncLogs);
   }
-}
 
   Widget _buildSummaryCard(AsyncValue<List<FoodLog>> asyncLogs) {
-    double totalCals = 0;
-    double totalPro = 0;
-    
-    if (asyncLogs.hasValue) {
-      for (var log in asyncLogs.value!) {
-        totalCals += log.calories;
-        totalPro += log.protein; 
-      }
-    }
-
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -164,10 +112,8 @@ class _HomeContent extends ConsumerWidget {
                   },
                 );
               },
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
-              error: (_, __) =>
-                  const Center(child: Text("Error loading meals")),
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (_, __) => const Center(child: Text("Error loading meals")),
             ),
           ),
         ],
@@ -188,16 +134,20 @@ class _HomeContent extends ConsumerWidget {
 
     return Row(
       children: [
-        _GlassStatCard(
-          value: calories.toInt().toString(),
-          label: "kcal Calories",
-          color: const Color(0xFFFFB86C),
+        Expanded(
+          child: _GlassStatCard(
+            value: calories.toInt().toString(),
+            label: "kcal Calories",
+            color: const Color(0xFFFFB86C),
+          ),
         ),
         const SizedBox(width: 16),
-        _GlassStatCard(
-          value: protein.toStringAsFixed(1),
-          label: "g Protein",
-          color: const Color(0xFF6EE7B7),
+        Expanded(
+          child: _GlassStatCard(
+            value: protein.toStringAsFixed(1),
+            label: "g Protein",
+            color: const Color(0xFF6EE7B7),
+          ),
         ),
       ],
     );
@@ -211,9 +161,77 @@ class _HomeContent extends ConsumerWidget {
           Icon(Icons.no_meals, size: 48, color: Colors.grey[400]),
           const SizedBox(height: 10),
           Text("No meals yet.", style: TextStyle(color: Colors.grey[600])),
-          Text("Tap 'Add Meal' to start.", style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+          Text("Tap 'Add Meal' to start.",
+              style: TextStyle(color: Colors.grey[500], fontSize: 12)),
         ],
       ),
     );
   }
 }
+
+class _MealTile extends ConsumerWidget {
+  final FoodLog meal;
+  const _MealTile({required this.meal});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListTile(
+        leading: const CircleAvatar(child: Text("🥘")),
+        title: Text(meal.foodName,
+            style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Text(DateFormat('hh:mm a').format(meal.timestamp)),
+        trailing: Text("${meal.calories.toInt()} kcal",
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        onLongPress: () {
+          ref.read(isarProvider).deleteLog(meal.id);
+          ref.refresh(todaysLogsProvider);
+        },
+      ),
+    );
+  }
+}
+
+class _GlassStatCard extends StatelessWidget {
+  final String value;
+  final String label;
+  final Color color;
+
+  const _GlassStatCard({
+    required this.value,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white60, fontSize: 14),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

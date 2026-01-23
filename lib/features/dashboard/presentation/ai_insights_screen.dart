@@ -44,7 +44,7 @@ class _AiInsightsScreenState extends ConsumerState<AiInsightsScreen> {
     });
 
     try {
-      final model = GenerativeModel(model: 'gemini-pro', apiKey: apiKey);
+      final model = GenerativeModel(model: 'gemini-2.0-flash-lite', apiKey: apiKey);
 
       final dateFormat = DateFormat('yyyy-MM-dd HH:mm');
       final sb = StringBuffer();
