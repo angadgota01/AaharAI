@@ -1,211 +1,168 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:intl/intl.dart';
 
-class AiInsightsScreen extends StatelessWidget {
+import '../../../data/local/isar_service.dart';
+import '../../../data/local/entities/food_log.dart';
+
+final isarProvider = Provider((ref) => IsarService());
+
+final recentLogsProvider = FutureProvider.autoDispose<List<FoodLog>>((ref) async {
+  final service = ref.watch(isarProvider);
+  // Get all logs for now, or filter last 7 days if getAllLogs returns everything
+  return service.getAllLogs();
+});
+
+class AiInsightsScreen extends ConsumerStatefulWidget {
   const AiInsightsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF0F2027),
-              Color(0xFF203A43),
-              Color(0xFF2C5364),
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 160),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // HEADER
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      "AI Insights 🤖",
-                      style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () {
-                        // refresh action later
-                      },
-                      icon: const Icon(Icons.refresh),
-                    )
-                  ],
-                ),
-
-                const SizedBox(height: 6),
-                Text(
-                  "Personalized nutrition insights powered by AI",
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.65),
-                  ),
-                ),
-
-                const SizedBox(height: 28),
-
-                // NO INSIGHTS CARD
-                const _GlassInfoCard(
-                  icon: Icons.auto_awesome,
-                  title: "No Insights Yet",
-                  subtitle:
-                      "Log meals consistently to unlock AI-powered analysis",
-                ),
-
-                const SizedBox(height: 18),
-
-                const _GlassInfoCard(
-                  icon: Icons.trending_up,
-                  title: "Trends & Patterns",
-                  subtitle:
-                      "Calories, protein balance, and habits will appear here",
-                ),
-
-                const SizedBox(height: 18),
-
-                const _GlassInfoCard(
-                  icon: Icons.health_and_safety,
-                  title: "Health Suggestions",
-                  subtitle:
-                      "Actionable recommendations based on your diet",
-                ),
-
-                const SizedBox(height: 30),
-
-                // GENERATE BUTTON
-                Center(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(18),
-                      gradient: const LinearGradient(
-                        colors: [
-                          Color(0xFFFFB86C),
-                          Color(0xFFFF9F43),
-                        ],
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.orange.withOpacity(0.35),
-                          blurRadius: 18,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        // trigger AI later
-                      },
-                      icon: const Icon(Icons.auto_awesome, color: Colors.black),
-                      label: const Text(
-                        "Generate Insights",
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 26,
-                          vertical: 14,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  ConsumerState<AiInsightsScreen> createState() => _AiInsightsScreenState();
 }
 
-// ---------------- COMPONENT ----------------
+class _AiInsightsScreenState extends ConsumerState<AiInsightsScreen> {
+  String _response = "";
+  bool _isLoading = false;
+  bool _hasGenerated = false;
 
-class _GlassInfoCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
+  Future<void> _generateInsights(List<FoodLog> logs) async {
+    final apiKey = dotenv.env['GEMINI_API_KEY'];
+    if (apiKey == null || apiKey == 'YOUR_API_KEY_HERE') {
+      setState(() {
+        _response = "Error: GEMINI_API_KEY not found in .env file. Please add your API key.";
+        _isLoading = false;
+        _hasGenerated = true;
+      });
+      return;
+    }
 
-  const _GlassInfoCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
+    setState(() {
+      _isLoading = true;
+      _response = "";
+    });
+
+    try {
+      final model = GenerativeModel(model: 'gemini-pro', apiKey: apiKey);
+
+      final dateFormat = DateFormat('yyyy-MM-dd HH:mm');
+      final sb = StringBuffer();
+      sb.writeln("Here are my meal logs for the recent days:");
+      for (var log in logs) {
+        sb.writeln("- ${dateFormat.format(log.timestamp)}: ${log.foodName} (${log.calories} kcal, ${log.protein}g protein)");
+      }
+      sb.writeln("\nPlease analyze my nutrition habits based on this data. Give me 3 key insights and 1 actionable recommendation. Keep it concise.");
+
+      final content = [Content.text(sb.toString())];
+      final response = await model.generateContent(content);
+
+      if (mounted) {
+        setState(() {
+          _response = response.text ?? "No response generated.";
+          _isLoading = false;
+          _hasGenerated = true;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _response = "Failed to generate insights: $e";
+          _isLoading = false;
+          _hasGenerated = true;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.12),
+    final asyncLogs = ref.watch(recentLogsProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("AI Insights 🤖"),
+        actions: [
+          // Refresh button
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+               setState(() {
+                 _hasGenerated = false;
+                 _response = "";
+               });
+               // Refetch logs if needed
+               ref.refresh(recentLogsProvider);
+            },
+          )
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            const Text(
+              "Get personalized nutrition insights based on your food history.",
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+              textAlign: TextAlign.center,
             ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.12),
-                ),
-                child: Icon(icon, color: Colors.white),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+            const SizedBox(height: 20),
+            Expanded(
+              child: asyncLogs.when(
+                data: (logs) {
+                  if (logs.isEmpty) {
+                    return const Center(child: Text("No meals logged yet. Log some meals to get insights!"));
+                  }
+
+                  if (!_hasGenerated && !_isLoading) {
+                    return Center(
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.auto_awesome),
+                        label: const Text("Generate Insights"),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                        ),
+                        onPressed: () => _generateInsights(logs),
+                      ),
+                    );
+                  }
+
+                  if (_isLoading) {
+                    return const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text("Consulting AI Nutritionist..."),
+                        ],
+                      ),
+                    );
+                  }
+
+                  // Show Response
+                  return SingleChildScrollView(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.purple.shade100),
+                      ),
+                      child: Text(
+                        _response,
+                        style: const TextStyle(fontSize: 16, height: 1.5),
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.65),
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
+                  );
+                },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, s) => Center(child: Text("Error loading data: $e")),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
-
-

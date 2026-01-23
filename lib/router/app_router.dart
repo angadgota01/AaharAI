@@ -3,14 +3,39 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../auth/login_screen.dart';
 import '../auth/signup_screen.dart';
+import '../auth/forgot_password_screen.dart';
+import '../auth/auth_service.dart';
+import '../auth/auth_notifier.dart';
 import '../features/dashboard/presentation/user_home.dart';
 import '../features/dashboard/presentation/consultation_screen.dart';
 import '../consultation/chat_screen.dart';
 import '../features/scanner/presentation/add_meal_screen.dart';
 
 final goRouterProvider = Provider<GoRouter>((ref) {
+  final authNotifier = AuthNotifier();
+  
   return GoRouter(
     initialLocation: '/login',
+    refreshListenable: authNotifier,
+    redirect: (context, state) {
+      final isAuthenticated = AuthService.isAuthenticated();
+      final isLoggingIn = state.matchedLocation == '/login';
+      final isSigningUp = state.matchedLocation == '/signup';
+      final isForgotPassword = state.matchedLocation == '/forgot-password';
+
+      // If not authenticated and trying to access protected routes
+      if (!isAuthenticated && !isLoggingIn && !isSigningUp && !isForgotPassword) {
+        return '/login';
+      }
+
+      // If authenticated and trying to access login/signup, redirect to home
+      if (isAuthenticated && (isLoggingIn || isSigningUp)) {
+        return '/';
+      }
+
+      // No redirect needed
+      return null;
+    },
     routes: [
       // -------- AUTH --------
       GoRoute(
@@ -22,6 +47,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: '/signup',
         name: 'signup',
         builder: (context, state) => const SignupScreen(),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        name: 'forgot-password',
+        builder: (context, state) => const ForgotPasswordScreen(),
       ),
 
       // -------- HOME --------

@@ -30,83 +30,40 @@ class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      // ✅ GRADIENT MUST BE OUTSIDE SCAFFOLD
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF0F2027),
-            Color(0xFF203A43),
-            Color(0xFF2C5364),
-          ],
-        ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Aahar AI 🍛"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.person_outline),
+            onPressed: () => context.push('/consultation'),
+          )
+        ],
       ),
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        extendBody: true,
-
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          title: const Text(
-            "Aahar AI 🍛",
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.person_outline),
-              onPressed: () => context.push('/consultation'),
-            ),
-          ],
-        ),
-
-        body: _currentIndex == 0
-            ? const _HomeContent()
-            : _currentIndex == 1
-                ? const HistoryScreen()
-                : const AiInsightsScreen(),
-
-        // 🔥 PREMIUM ADD MEAL BUTTON
-        floatingActionButton: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: const LinearGradient(
-              colors: [Color(0xFF2ECC71), Color(0xFF27AE60)],
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.greenAccent.withOpacity(0.35),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: FloatingActionButton.extended(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            icon: const Icon(Icons.add, color: Colors.black),
-            label: const Text(
-              "Add Meal",
-              style: TextStyle(
-                color: Colors.black,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            onPressed: () {
-              context.push('/add_meal').then((_) {
-                ref.refresh(todaysLogsProvider);
-              });
-            },
-          ),
-        ),
-
-        // 💎 PREMIUM BOTTOM BAR
-        bottomNavigationBar: _PremiumBottomBar(
-          currentIndex: _currentIndex,
-          onTap: (index) => setState(() => _currentIndex = index),
-        ),
+      body: _currentIndex == 0 
+          ? const _HomeContent() 
+          : _currentIndex == 1 
+              ? const HistoryScreen() 
+              : const AiInsightsScreen(),
+      floatingActionButton: FloatingActionButton.extended(
+        icon: const Icon(Icons.add),
+        label: const Text("Add Meal"),
+        onPressed: () {
+          // Navigate to AddMealScreen
+           context.push('/add_meal').then((_) {
+             // Refresh data on return
+             ref.refresh(todaysLogsProvider);
+           });
+        },
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) => setState(() => _currentIndex = index),
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.today), label: "Today"),
+          BottomNavigationBarItem(icon: Icon(Icons.history), label: "History"),
+          BottomNavigationBarItem(icon: Icon(Icons.psychology), label: "Insights"),
+        ],
       ),
     );
   }
@@ -118,6 +75,61 @@ class _HomeContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final asyncLogs = ref.watch(todaysLogsProvider);
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSummaryCard(asyncLogs),
+          const SizedBox(height: 24),
+          const Text("Today's Meals", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          Expanded(
+            child: asyncLogs.when(
+              data: (logs) {
+                if (logs.isEmpty) return _buildEmptyState();
+                return ListView.builder(
+                  itemCount: logs.length,
+                  itemBuilder: (context, index) {
+                    final meal = logs[index];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: ListTile(
+                        leading: const CircleAvatar(child: Text("🥘")),
+                        title: Text(meal.foodName, style: const TextStyle(fontWeight: FontWeight.w600)),
+                        subtitle: Text(DateFormat('hh:mm a').format(meal.timestamp)),
+                        trailing: Text("${meal.calories.toInt()} kcal", 
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        onLongPress: () {
+                           ref.read(isarProvider).deleteLog(meal.id);
+                           ref.refresh(todaysLogsProvider);
+                        },
+                      ),
+                    );
+                  },
+                );
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, s) => Center(child: Text("Error: $e")),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+  Widget _buildSummaryCard(AsyncValue<List<FoodLog>> asyncLogs) {
+    double totalCals = 0;
+    double totalPro = 0;
+    
+    if (asyncLogs.hasValue) {
+      for (var log in asyncLogs.value!) {
+        totalCals += log.calories;
+        totalPro += log.protein; 
+      }
+    }
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
@@ -196,218 +208,12 @@ class _HomeContent extends ConsumerWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.restaurant_menu,
-              size: 52, color: Colors.white.withOpacity(0.35)),
-          const SizedBox(height: 12),
-          const Text(
-            "Your nutrition journey starts today",
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            "Log your first meal to unlock insights",
-            style: TextStyle(color: Colors.white.withOpacity(0.6)),
-          ),
+          Icon(Icons.no_meals, size: 48, color: Colors.grey[400]),
+          const SizedBox(height: 10),
+          Text("No meals yet.", style: TextStyle(color: Colors.grey[600])),
+          Text("Tap 'Add Meal' to start.", style: TextStyle(color: Colors.grey[500], fontSize: 12)),
         ],
       ),
     );
   }
 }
-
-// ---------------- COMPONENTS ----------------
-
-class _GlassStatCard extends StatelessWidget {
-  final String value;
-  final String label;
-  final Color color;
-
-  const _GlassStatCard({
-    required this.value,
-    required this.label,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 22),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(20),
-              border:
-                  Border.all(color: Colors.white.withOpacity(0.12)),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  value,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MealTile extends ConsumerWidget {
-  final FoodLog meal;
-
-  const _MealTile({required this.meal});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
-      ),
-      child: ListTile(
-        leading: const CircleAvatar(
-          backgroundColor: Colors.black45,
-          child: Text("🥗"),
-        ),
-        title: Text(meal.foodName,
-            style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle:
-            Text(DateFormat('hh:mm a').format(meal.timestamp)),
-        trailing: Text(
-          "${meal.calories.toInt()} kcal",
-          style: const TextStyle(
-              fontWeight: FontWeight.bold, fontSize: 15),
-        ),
-        onLongPress: () {
-          ref.read(isarProvider).deleteLog(meal.id);
-          ref.refresh(todaysLogsProvider);
-        },
-      ),
-    );
-  }
-}
-
-class _PremiumBottomBar extends StatelessWidget {
-  final int currentIndex;
-  final ValueChanged<int> onTap;
-
-  const _PremiumBottomBar({
-    required this.currentIndex,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Container(
-            height: 64,
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.55),
-              borderRadius: BorderRadius.circular(30),
-              border:
-                  Border.all(color: Colors.white.withOpacity(0.08)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _NavItem(
-                  icon: Icons.calendar_today_rounded,
-                  label: "Today",
-                  isActive: currentIndex == 0,
-                  onTap: () => onTap(0),
-                ),
-                _NavItem(
-                  icon: Icons.history_rounded,
-                  label: "History",
-                  isActive: currentIndex == 1,
-                  onTap: () => onTap(1),
-                ),
-                _NavItem(
-                  icon: Icons.auto_awesome_rounded,
-                  label: "Insights",
-                  isActive: currentIndex == 2,
-                  onTap: () => onTap(2),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color =
-        isActive ? const Color(0xFF6EE7B7) : Colors.white70;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: isActive
-            ? BoxDecoration(
-                color: Colors.white.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(20),
-              )
-            : null,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-

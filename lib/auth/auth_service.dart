@@ -1,39 +1,82 @@
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {
-  static const String _userKey = "mock_users";
+  static final _supabase = Supabase.instance.client;
 
-  // Save new user
+  // Sign up new user
   static Future<String?> signup(String email, String password) async {
-    final prefs = await SharedPreferences.getInstance();
-    final users = prefs.getStringList(_userKey) ?? [];
+    try {
+      final response = await _supabase.auth.signUp(
+        email: email,
+        password: password,
+      );
 
-    // Check if user exists
-    for (var u in users) {
-      final parts = u.split("|");
-      if (parts[0] == email) {
-        return "User already exists";
+      if (response.user == null) {
+        return "Failed to create account. Please try again.";
       }
-    }
 
-    users.add("$email|$password");
-    await prefs.setStringList(_userKey, users);
-    return null; // success
+      return null; // Success
+    } on AuthException catch (e) {
+      return e.message;
+    } catch (e) {
+      return "An unexpected error occurred: $e";
+    }
   }
 
-  // Login existing user
+  // Sign in existing user
   static Future<String?> login(String email, String password) async {
-    final prefs = await SharedPreferences.getInstance();
-    final users = prefs.getStringList(_userKey) ?? [];
+    try {
+      final response = await _supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
 
-    for (var u in users) {
-      final parts = u.split("|");
-      if (parts[0] == email && parts[1] == password) {
-        return null; // success
+      if (response.user == null) {
+        return "Login failed. Please check your credentials.";
       }
-    }
 
-    return "Invalid email or password";
+      return null; // Success
+    } on AuthException catch (e) {
+      return e.message;
+    } catch (e) {
+      return "An unexpected error occurred: $e";
+    }
+  }
+
+  // Sign out current user
+  static Future<void> signOut() async {
+    await _supabase.auth.signOut();
+  }
+
+  // Get current user
+  static User? getCurrentUser() {
+    return _supabase.auth.currentUser;
+  }
+
+  // Get current session
+  static Session? getCurrentSession() {
+    return _supabase.auth.currentSession;
+  }
+
+  // Check if user is authenticated
+  static bool isAuthenticated() {
+    return _supabase.auth.currentUser != null;
+  }
+
+  // Stream of auth state changes
+  static Stream<AuthState> get authStateChanges {
+    return _supabase.auth.onAuthStateChange;
+  }
+
+  // Request password reset email
+  static Future<String?> resetPassword(String email) async {
+    try {
+      await _supabase.auth.resetPasswordForEmail(email);
+      return null; // Success
+    } on AuthException catch (e) {
+      return e.message;
+    } catch (e) {
+      return "An unexpected error occurred: $e";
+    }
   }
 }
-
